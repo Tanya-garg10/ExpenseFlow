@@ -691,6 +691,22 @@
       </div>
 
       <div id="analytics-dashboard" class="analytics-grid">
+        <!-- Health Score Widget - Issue #481 -->
+        <div class="analytics-row wellness-row">
+          <div id="health-gauge-container" class="analytics-card health-gauge-card">
+            <div class="widget-loading">
+              <i class="fas fa-spinner fa-spin"></i>
+              <span>Calculating health score...</span>
+            </div>
+          </div>
+          <div id="smart-insights-container" class="analytics-card insights-card">
+            <div class="widget-loading">
+              <i class="fas fa-spinner fa-spin"></i>
+              <span>Loading insights...</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Top Row: Velocity and Forecast -->
         <div class="analytics-row top-row">
           <div id="velocity-widget" class="analytics-card velocity-card">

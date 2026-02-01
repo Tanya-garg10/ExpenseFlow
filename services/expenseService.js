@@ -120,7 +120,53 @@ class ExpenseService {
         }
         await budgetService.updateGoalProgress(userId, finalData.type === 'expense' ? -amountForBudget : amountForBudget, finalData.category);
 
-        // 8. Emit WebSocket
+        // 7. Trigger Intelligence Analysis (async, non-blocking)
+        setImmediate(async () => {
+            try {
+                const burnRate = await intelligenceService.calculateBurnRate(userId, {
+                    categoryId: finalData.category,
+                    workspaceId: finalData.workspace
+                });
+                
+                // Emit burn rate update to client
+                if (io && burnRate.trend === 'increasing' && burnRate.trendPercentage > 15) {
+                    io.to(`user_${userId}`).emit('burn_rate_alert', {
+                        type: 'warning',
+                        category: finalData.category,
+                        burnRate: burnRate.dailyBurnRate,
+                        trend: burnRate.trend,
+                        trendPercentage: burnRate.trendPercentage
+                    });
+                }
+            } catch (intelligenceError) {
+                console.error('[ExpenseService] Intelligence analysis error:', intelligenceError);
+            }
+        });
+
+        // 8. Trigger Wellness Score Recalculation (async, non-blocking) - Issue #481
+        setImmediate(async () => {
+            try {
+                const wellnessService = require('./wellnessService');
+                const healthScore = await wellnessService.calculateHealthScore(userId, { timeWindow: 30 });
+                
+                // Emit health score update to client if score changed significantly
+                if (io && healthScore.previousScore) {
+                    const scoreDiff = Math.abs(healthScore.score - healthScore.previousScore);
+                    if (scoreDiff >= 5) {
+                        io.to(`user_${userId}`).emit('health_score_update', {
+                            score: healthScore.score,
+                            grade: healthScore.grade,
+                            change: healthScore.scoreChange,
+                            trend: healthScore.trend
+                        });
+                    }
+                }
+            } catch (wellnessError) {
+                console.error('[ExpenseService] Wellness calculation error:', wellnessError);
+            }
+        });
+
+        // 9. Emit WebSocket
         if (io) {
             const socketData = expense.toObject();
             socketData.displayAmount = finalData.convertedAmount || expense.amount;
