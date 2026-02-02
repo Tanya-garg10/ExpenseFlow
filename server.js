@@ -53,7 +53,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com","https://api.github.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com", "https://api.github.com"],
       scriptSrc: [
         "'self'",
         "'unsafe-inline'",
@@ -62,7 +62,7 @@ app.use(helmet({
         "https://api.github.com"
       ],
       scriptSrcAttr: ["'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:", "https://res.cloudinary.com","https://api.github.com"],
+      imgSrc: ["'self'", "data:", "https:", "https://res.cloudinary.com", "https://api.github.com"],
       connectSrc: [
         "'self'",
         "http://localhost:3000",
@@ -189,7 +189,7 @@ io.on('connection', (socket) => {
   socket.on('settlement_action', async (data) => {
     try {
       const { action, settlementId, groupId, paymentDetails, reason } = data;
-      
+
       switch (action) {
         case 'request':
           await settlementService.requestSettlement(settlementId, socket.userId, paymentDetails);
@@ -240,11 +240,25 @@ console.log('Collaboration handler initialized');
 // Routes
 app.use('/api/auth', require('./middleware/rateLimiter').authLimiter, authRoutes);
 app.use('/api/currency', require('./routes/currency'));
-app.use('/api/groups', require('./routes/groups'));
-app.use('/api/splits', require('./routes/splits'));
-app.use('/api/workspaces', require('./routes/workspaces'));
-app.use('/api/tax', require('./routes/tax'));
-
+app.use('/api/user', protect, require('./routes/user'));
+app.use('/api/expenses', require('./middleware/rateLimiter').expenseLimiter, protect, expenseRoutes);
+app.use('/api/transactions', require('./middleware/rateLimiter').expenseLimiter, protect, require('./routes/transactions'));
+app.use('/api/sync', protect, syncRoutes);
+app.use('/api/rules', protect, require('./routes/rules'));
+app.use('/api/notifications', protect, require('./routes/notifications'));
+app.use('/api/receipts', require('./middleware/rateLimiter').uploadLimiter, protect, require('./routes/receipts'));
+app.use('/api/budgets', protect, require('./routes/budgets'));
+app.use('/api/goals', protect, require('./routes/goals'));
+app.use('/api/analytics', protect, require('./routes/analytics'));
+app.use('/api/groups', protect, require('./routes/groups'));
+app.use('/api/splits', protect, require('./routes/splits'));
+app.use('/api/workspaces', protect, require('./routes/workspaces'));
+app.use('/api/tax', protect, require('./routes/tax'));
+app.use('/api/bills', protect, require('./routes/bills'));
+app.use('/api/calendar', protect, require('./routes/calendar'));
+app.use('/api/reminders', protect, require('./routes/reminders'));
+app.use('/api/audit', protect, require('./routes/audit'));
+app.use('/api/subscriptions', protect, require('./routes/subscriptions'));
 app.use('/api/accounts', require('./routes/accounts'));
 
 // Express error handler middleware (must be after all routes)
