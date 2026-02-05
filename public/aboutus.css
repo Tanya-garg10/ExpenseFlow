@@ -569,3 +569,23 @@ html{
 .feedback-form {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
 }
+/* Blue Trailing Cursor - ExpenseFlow About Page */
+.trail-cursor {
+  width: 14px;
+  height: 14px;
+  background: rgba(0, 123, 255, 0.85); /* Blue */
+  border-radius: 50%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition: 
+    left 0.1s ease-out,
+    top 0.1s ease-out,
+    transform 0.1s ease-out;
+  z-index: 9999;
+  box-shadow: 
+    0 0 8px rgba(0, 123, 255, 0.7),
+    0 0 16px rgba(0, 123, 255, 0.4);
+}

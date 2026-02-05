@@ -3,7 +3,9 @@
    HELP CENTER – SAFE UI ENHANCEMENTS
    (NO PARENT LAYOUT CHANGES)
 ========================= */
-
+html{
+  scroll-behavior: smooth;
+}
 /* Improve card alignment only */
 .balance-card {
   border-radius: 16px;
@@ -419,74 +421,35 @@
 .balance-card:hover p {
   transform: scale(1.04);
 }
+
+/* ----- KEEP TEXT COLORS SAME ----- */
+.balance-card:hover h4,
+.balance-card:hover p {
+  color: inherit;
+}
 /* =========================
-   FINAL PREMIUM LANGUAGE SELECTOR
+   TEXT COLOR BLACK ON HOVER
 ========================= */
 
-.lang-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: 14px;
-  background: linear-gradient(
-    135deg,
-    rgba(255,255,255,0.15),
-    rgba(255,255,255,0.05)
-  );
-  backdrop-filter: blur(12px);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
-  transition: all 0.4s ease;
+.balance-card:hover h4,
+.balance-card:hover p {
+  color: #000; /* pure black */
 }
 
-.lang-wrapper:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 14px 30px rgba(0,0,0,0.2);
-  border: 1px solid rgba(255,255,255,0.35);
+.back-to-top {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  background: #4f46e5;
+  color: white;
+  padding: 12px 14px;
+  border-radius: 50%;
+  text-decoration: none;
+  font-size: 18px;
 }
 
-/* ICON */
-.lang-wrapper i {
-  font-size: 1.2rem;
-  color: #ffffff;
-  animation: langPulse 3s ease-in-out infinite;
-}
 
-@keyframes langPulse {
-  0%,100% { transform: scale(1); }
-  50% { transform: scale(1.15); }
-}
-
-/* SELECT */
-#languageSelect {
-  appearance: none;
-  background: transparent;
-  border: none;
-  outline: none;
-  font-family: inherit;
-  font-size: 0.95rem;
-  font-weight: 500;
-  cursor: pointer;
-  color: #ffffff;
-  padding-right: 20px;
-}
-
-/* DROPDOWN OPTIONS */
-#languageSelect option {
-  background: #ffffff;
-  color: #000000;
-}
-
-/* CUSTOM ARROW */
-.lang-wrapper::after {
-  content: "⌄";
-  font-size: 0.9rem;
-  color: #ffffff;
-  margin-left: -8px;
-  pointer-events: none;
-}
-
-       /* <!-- Smooth Cursor Trail --> */
+        /* <!-- Smooth Cursor Trail --> */
 
   .cursor-trail-container {
     position: fixed;
@@ -532,53 +495,3 @@
     transform: translate(-50%, -50%) scale(1.3);
     background: linear-gradient(135deg, #00b4d8 0%, #64ffda 100%) !important;
   }
-/* ============================= */
-/* 🔵 Blue Cursor Trail Effect  */
-/* ============================= */
-
-.circle-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  pointer-events: none;
-  z-index: 999999;
-}
-
-.cursor-circle {
-  position: fixed;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #3b82f6;
-  box-shadow:
-    0 0 10px #3b82f6,
-    0 0 20px rgba(59,130,246,0.8),
-    0 0 35px rgba(59,130,246,0.6);
-  transform: translate(-50%, -50%);
-  mix-blend-mode: screen;
-  will-change: transform;
-}
-
-.cursor-circle:first-child {
-  width: 14px;
-  height: 14px;
-  background: #60a5fa;
-  box-shadow:
-    0 0 15px #60a5fa,
-    0 0 35px rgba(96,165,250,0.9);
-}
-
-.cursor-clicking {
-  transform: translate(-50%, -50%) scale(2.2) !important;
-}
-
-.cursor-hovering {
-  transform: translate(-50%, -50%) scale(1.6);
-}
-
-/* Optional */
-body {
-  cursor: none;
-}
