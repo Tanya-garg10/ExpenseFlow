@@ -869,6 +869,85 @@
               <span class="brand-name">ExpenseFlow</span>
               <span class="brand-tagline">Smart Finance</span>
             </div>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#64ffda">
+  <meta name="description" content="Take control of your finances with our intuitive expense tracker">
+  <meta name="keywords" content="expense tracker, budget, finance, money management, PWA">
+  <meta name="author" content="ExpenseFlow">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <!-- PWA Meta Tags -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ExpenseFlow">
+  <meta name="msapplication-TileColor" content="#0f0f23">
+  <meta name="msapplication-navbutton-color" content="#64ffda">
+
+  <!-- Manifest -->
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Apple Touch Icons -->
+  <link rel="apple-touch-icon"
+    href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iNDIiIGZpbGw9InVybCgjZ3JhZGllbnQwX2xpbmVhclswXSkiLz4KPHBhdGggZD0iTTQ4IDY0SDQ4LjA0OEgxNDRWMTI4SDk2VjE0NEgxNDRDMTUyLjgzNyAxNDQgMTYwIDEzNi44MzcgMTYwIDEyOFY2NEM1OCA1Ni4xNjMgNTIuMDQzIDQ4IDQ4IEg0OEM0MC4wNzEgNDggMzIgNTYuMDcxIDMyIDY0VjEyOEMzMiAxMzUuOTI5IDQwLjA3MSAxNDQgNDggMTQ0SDgwVjEyOEg0OFY2NFoiIGZpbGw9IiM2NGZmZGEiLz4KPHBhdGggZD0iTTY0IDgwSDgwVjk2SDY0VjgwWiIgZmlsbD0iIzY0ZmZkYSIvPgo8cGF0aCBkPSJNOTYgODBIMTI4Vjk2SDk2VjgwWiIgZmlsbD0iIzY0ZmZkYSIvPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJncmFkaWVudDBfbGluZWFyWzBdIiB4MT0iMCIgeTE9IjAiIHgyPSIxOTIiIHkyPSIxOTIiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KPHN0b3Agc3RvcC1jb2xvcj0iIzY2N2VlYSIvPgo8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM3NjRiYTIiLz4KPC9saW5lYXJHcmFkaWVudD4KPC9kZWZzPgo8L3N2Zz4K">
+
+  <title>ExpenseFlow - Smart Money Management</title>
+  <link rel="stylesheet" href="expensetracker.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="login.css">
+
+</head>
+
+<body>
+  <!-- Smooth Cursor Trail -->
+
+
+  <div class="cursor-trail-container" id="cursor-trail"></div>
+
+
+  <!-- Header -->
+  <header class="header">
+    <nav class="navbar">
+      <div class="nav-container">
+        <div class="nav-logo">
+          <div class="logo-icon">
+            <i class="fas fa-wallet"></i>
+          </div>
+          <div class="logo-text">
+            <span class="brand-name">ExpenseFlow</span>
+            <span class="brand-tagline">Smart Finance</span>
+          </div>
+        </div>
+        <div class="nav-menu" id="nav-menu">
+          <div class="nav-item">
+            <a href="dashboard.html" class="nav-link">
+              <i class="fas fa-chart-pie"></i>
+              <span>Dashboard</span>
+            </a>
+          </div>
+          <div class="nav-item">
+            <a href="Monthlysummary.html" class="nav-link">
+              <i class="fas fa-calendar-alt"></i>
+              <span>Monthly Summary</span>
+            </a>
+          </div>
+          <div class="nav-item">
+            <a href="CurrencyConverter.html" class="nav-link">
+              <i class="fas fa-exchange-alt"></i>
+              <span>Currency Converter</span>
+            </a>
+          </div>
+          <div class="nav-item">
+            <a href="feedback.html" class="nav-link">
+              <i class="fas fa-comment-dots"></i>
+              <span>Feedback</span>
+            </a>
           </div>
           <div class="nav-menu" id="nav-menu">
             <div class="nav-item">
@@ -968,6 +1047,46 @@
         </form>
       </div>
     </main>
+          <div class="auth-buttons">
+            <div class="auth-btn signup-btn">
+              <a href="signup.html">
+                <i class="fas fa-user-plus"></i>
+                <span>Sign Up</span>
+              </a>
+            </div>
+            <div class="auth-btn login-btn active">
+              <a href="login.html">
+                <i class="fas fa-sign-in-alt"></i>
+                <span>Login</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="container">
+      <div style="text-align:center; font-size:2rem; margin-bottom:0.5rem;">
+        <i class="fas fa-lock"></i>
+      </div>
+      <h2>Login</h2>
+      <form action="" id="loginForm">
+        <div class="form-group">
+          <label for="email">Email:</label>
+          <input type="email" id="loginEmail" required placeholder="enter user email">
+        </div>
+        <div class="form-group">
+          <label for="password">Password:</label>
+          <input type="password" id="loginPassword" required placeholder="enter user password">
+        </div>
+        <button type="submit" class="btn">Login</button>
+        <p>Don't have an account? <a href="signup.html">Sign up here</a></p>
+      </form>
+    </div>
+  </main>
 
     <footer class="footer">
       <div class="footer-container">
@@ -1023,7 +1142,41 @@
               <i class="fab fa-linkedin-in"></i>
             </a>
           </div>
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-section">
+        <div class="footer-logo">
+          <i class="fas fa-wallet"></i>
+          <span>ExpenseFlow</span>
         </div>
+
+        <p class="footer-description">
+          Smart money management made simple. Track, analyze, and optimize
+          your financial habits.
+        </p>
+
+        <div class="social-links">
+          <a href="https://x.com/9504_renu" class="social-link" target="_blank" rel="noopener noreferrer"
+            aria-label="X (Twitter)">
+            <i class="fab fa-x-twitter"></i>
+          </a>
+
+          <a href="https://github.com/Renu-code123/ExpenseFlow" class="social-link" target="_blank"
+            rel="noopener noreferrer" aria-label="Github">
+            <i class="fab fa-github"></i>
+          </a>
+
+          <a href="mailto:renu89857@gmail.com" class="social-link" target="_blank" rel="noopener noreferrer"
+            aria-label="Email">
+            <i class="far fa-envelope"></i>
+          </a>
+
+          <a href="https://www.linkedin.com/in/renu-kumari-prajapati" class="social-link" target="_blank"
+            rel="noopener noreferrer" aria-label="LinkedIn">
+            <i class="fab fa-linkedin-in"></i>
+          </a>
+        </div>
+      </div>
 
         <div class="footer-section">
           <h4>Company</h4>
@@ -1054,4 +1207,36 @@
     </footer>
     <script src="login.js"></script>
   </body>
+</html>
+      <div class="footer-section">
+        <h4>Company</h4>
+        <ul class="footer-links">
+          <li><a href="AboutUs.html">About Us</a></li>
+          <li><a href="#">Privacy Policy</a></li>
+          <li><a href="#">Terms of Service</a></li>
+          <li><a href="#">Help Center</a></li>
+          <li><a href="#">Contact</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div class="footer-container">
+        <p id="copyright" style="text-align:center;"></p>
+        <script>
+          document.getElementById("copyright").innerHTML =
+            `&copy; ${new Date().getFullYear()} Expense Flow . All rights reserved.`;
+        </script>
+        <div class="footer-stats">
+          <span>🏆 Trusted by 10,000+ users</span>
+          <span>💰 ₹50M+ tracked</span>
+          <span>📊 99.9% uptime</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+  <script src="login.js"></script>
+
+</body>
+
 </html>

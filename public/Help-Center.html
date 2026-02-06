@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -17,7 +16,7 @@
 </head>
 
 <body>
-<div class="cursor-trail-container" id="cursor-trail"></div>
+<div class="circle-container" id="cursorTrail"></div>
 
 <!-- HEADER -->
 <header class="header">
@@ -172,7 +171,73 @@
       </script>
     </div>
   </div>
+<script>
+    
+/* ============================= */
+/* 🔵 Blue Cursor Trail Script  */
+/* ============================= */
 
+const container = document.getElementById('cursorTrail');
+const circleCount = 12;
+const circles = [];
+
+let mouseX = window.innerWidth / 2;
+let mouseY = window.innerHeight / 2;
+
+if (container) {
+  for (let i = 0; i < circleCount; i++) {
+    const circle = document.createElement('div');
+    circle.classList.add('cursor-circle');
+    container.appendChild(circle);
+    circles.push({ el: circle, x: mouseX, y: mouseY });
+  }
+
+  document.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  });
+
+  document.addEventListener('mousedown', () => {
+    circles.forEach(c => c.el.classList.add('cursor-clicking'));
+  });
+
+  document.addEventListener('mouseup', () => {
+    circles.forEach(c => c.el.classList.remove('cursor-clicking'));
+  });
+
+  document.addEventListener('mouseover', (e) => {
+    if (e.target.closest('a, button, .card, .link')) {
+      circles.forEach(c => c.el.classList.add('cursor-hovering'));
+    }
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    if (e.target.closest('a, button, .card, .link')) {
+      circles.forEach(c => c.el.classList.remove('cursor-hovering'));
+    }
+  });
+
+  function animateCursor() {
+    let x = mouseX;
+    let y = mouseY;
+
+    circles.forEach(circle => {
+      circle.x += (x - circle.x) * 0.25;
+      circle.y += (y - circle.y) * 0.25;
+
+      circle.el.style.left = circle.x + 'px';
+      circle.el.style.top = circle.y + 'px';
+
+      x = circle.x;
+      y = circle.y;
+    });
+
+    requestAnimationFrame(animateCursor);
+  }
+
+  animateCursor();
+}
+</script>
 <script src="helpcenter.js"></script>
 
 </body>

@@ -1,6 +1,5 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const Joi = require('joi');
 const crypto = require('crypto');
 const User = require('../models/User');
 const Session = require('../models/Session');
@@ -8,96 +7,79 @@ const AuditLog = require('../models/AuditLog');
 const emailService = require('../services/emailService');
 const securityMonitor = require('../services/securityMonitor');
 const SecurityService = require('../services/securityService');
-const { validateUser } = require('../middleware/sanitization');
 const auth = require('../middleware/auth');
+const { AuthSchemas, validateRequest } = require('../middleware/inputValidator');
+const {
+  loginLimiter,
+  registerLimiter,
+  passwordResetLimiter,
+  emailVerifyLimiter,
+  totpVerifyLimiter
+} = require('../middleware/rateLimiter');
+const ResponseFactory = require('../utils/ResponseFactory');
+const { asyncHandler } = require('../middleware/errorMiddleware');
+const { ConflictError, UnauthorizedError, BadRequestError } = require('../utils/AppError');
 const router = express.Router();
 
 /**
- * Authentication Routes with 2FA Support
+ * Authentication Routes with 2FA Support & Enhanced Validation & Rate Limiting
  * Issue #338: Enterprise-Grade Audit Trail & TOTP Security Suite
+ * Issue #461: Missing Input Validation on User Data
+ * Issue #460: Rate Limiting for Critical Endpoints
  */
 
-const registerSchema = Joi.object({
-  name: Joi.string().trim().max(50).required(),
-  email: Joi.string().email().required(),
-  password: Joi.string()
-    .min(12)
-    .max(128)
-    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
-    .required()
-    .messages({
-      'string.min': 'Password must be at least 12 characters long',
-      'string.max': 'Password must not exceed 128 characters',
-      'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)'
-    })
-});
-
-const loginSchema = Joi.object({
-  email: Joi.string().email().required(),
-  password: Joi.string().required(),
-  totpToken: Joi.string().length(6).optional(),
-  rememberMe: Joi.boolean().optional()
-});
-
 // Register
-router.post('/register', validateUser, async (req, res) => {
-  try {
-    const { error, value } = registerSchema.validate(req.body);
-    if (error) return res.status(400).json({ error: error.details[0].message });
+router.post('/register', registerLimiter, validateRequest(AuthSchemas.register), asyncHandler(async (req, res) => {
+  const existingUser = await User.findOne({ email: req.body.email });
+  if (existingUser) throw new ConflictError('User already exists');
 
-    const existingUser = await User.findOne({ email: value.email });
-    if (existingUser) return res.status(400).json({ error: 'User already exists' });
+  const user = new User(req.body);
+  await user.save();
 
-    const user = new User(value);
-    await user.save();
+  // Generate JWT with unique ID for session tracking
+  const jwtId = crypto.randomBytes(16).toString('hex');
+  const token = jwt.sign(
+    { id: user._id, jti: jwtId },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRE || '24h' }
+  );
 
-    // Generate JWT with unique ID for session tracking
-    const jwtId = crypto.randomBytes(16).toString('hex');
-    const token = jwt.sign(
-      { id: user._id, jti: jwtId },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRE || '24h' }
-    );
+  // Create session
+  await Session.createSession(user._id, jwtId, req, {
+    loginMethod: 'password',
+    rememberMe: false
+  });
 
-    // Create session
-    await Session.createSession(user._id, jwtId, req, {
-      loginMethod: 'password',
-      rememberMe: false
-    });
+  // Log registration
+  await AuditLog.logAuthEvent(user._id, 'user_register', req, {
+    severity: 'low',
+    status: 'success'
+  });
 
-    // Log registration
-    await AuditLog.logAuthEvent(user._id, 'user_register', req, {
-      severity: 'low',
-      status: 'success'
-    });
+  // Send welcome email (non-blocking)
+  emailService.sendWelcomeEmail(user).catch(err =>
+    console.error('Welcome email failed:', err)
+  );
 
-    // Send welcome email
-    try {
-      await emailService.sendWelcomeEmail(user);
-    } catch (emailError) {
-      console.error('Welcome email failed:', emailError);
+  return ResponseFactory.created(res, {
+    token,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      locale: user.locale,
+      preferredCurrency: user.preferredCurrency
     }
-
-    res.status(201).json({
-      token,
-      user: { id: user._id, name: user.name, email: user.email, locale: user.locale, preferredCurrency: user.preferredCurrency }
-    });
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
+  }, 'Registration successful');
+}));
 
 // Login
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, validateRequest(AuthSchemas.login), async (req, res) => {
   try {
-    const { error, value } = loginSchema.validate(req.body);
-    if (error) return res.status(400).json({ error: error.details[0].message });
-
-    const user = await User.findOne({ email: value.email });
+    const user = await User.findOne({ email: req.body.email });
     if (!user) {
       await securityMonitor.logSecurityEvent(req, 'failed_login', {
-        email: value.email,
+        email: req.body.email,
         reason: 'User not found'
       });
       return res.status(400).json({ error: 'Invalid credentials' });
@@ -110,13 +92,13 @@ router.post('/login', async (req, res) => {
         status: 'blocked'
       });
       const lockoutMinutes = Math.ceil((user.security.lockoutUntil - Date.now()) / 60000);
-      return res.status(423).json({ 
+      return res.status(423).json({
         error: `Account is locked. Please try again in ${lockoutMinutes} minutes.`,
         lockedUntil: user.security.lockoutUntil
       });
     }
 
-    const isMatch = await user.comparePassword(value.password);
+    const isMatch = await user.comparePassword(req.body.password);
     if (!isMatch) {
       await user.incrementFailedLogins();
       await AuditLog.logAuthEvent(user._id, 'login_failed', req, {
@@ -131,7 +113,7 @@ router.post('/login', async (req, res) => {
 
     // Check if 2FA is enabled
     if (user.twoFactorAuth?.enabled) {
-      if (!value.totpToken) {
+      if (!req.body.totpToken) {
         // Return indication that 2FA is required
         return res.status(200).json({
           requires2FA: true,
@@ -141,7 +123,7 @@ router.post('/login', async (req, res) => {
       }
 
       // Verify TOTP token
-      const verification = await SecurityService.verifyToken(user._id, value.totpToken, req);
+      const verification = await SecurityService.verifyToken(user._id, req.body.totpToken, req);
       if (!verification.valid) {
         return res.status(400).json({ error: 'Invalid 2FA code' });
       }
@@ -152,7 +134,7 @@ router.post('/login', async (req, res) => {
 
     // Generate JWT with unique ID
     const jwtId = crypto.randomBytes(16).toString('hex');
-    const expiresIn = value.rememberMe ? '30d' : (process.env.JWT_EXPIRE || '24h');
+    const expiresIn = req.body.rememberMe ? '30d' : (process.env.JWT_EXPIRE || '24h');
     const token = jwt.sign(
       { id: user._id, jti: jwtId },
       process.env.JWT_SECRET,
@@ -162,7 +144,7 @@ router.post('/login', async (req, res) => {
     // Create session
     const session = await Session.createSession(user._id, jwtId, req, {
       loginMethod: 'password',
-      rememberMe: value.rememberMe || false,
+      rememberMe: req.body.rememberMe || false,
       totpVerified: user.twoFactorAuth?.enabled || false
     });
 
@@ -178,11 +160,11 @@ router.post('/login', async (req, res) => {
     res.json({
       token,
       sessionId: session._id,
-      user: { 
-        id: user._id, 
-        name: user.name, 
-        email: user.email, 
-        locale: user.locale, 
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        locale: user.locale,
         preferredCurrency: user.preferredCurrency,
         twoFactorEnabled: user.twoFactorAuth?.enabled || false
       }
@@ -242,11 +224,11 @@ router.post('/verify-2fa', async (req, res) => {
     res.json({
       token,
       sessionId: session._id,
-      user: { 
-        id: user._id, 
-        name: user.name, 
-        email: user.email, 
-        locale: user.locale, 
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        locale: user.locale,
         preferredCurrency: user.preferredCurrency,
         twoFactorEnabled: true
       },
@@ -301,7 +283,7 @@ router.post('/2fa/setup', auth, async (req, res) => {
 router.post('/2fa/verify-setup', auth, async (req, res) => {
   try {
     const { token } = req.body;
-    
+
     if (!token || token.length !== 6) {
       return res.status(400).json({ error: 'Valid 6-digit token required' });
     }
@@ -318,7 +300,7 @@ router.post('/2fa/verify-setup', auth, async (req, res) => {
 router.post('/2fa/disable', auth, async (req, res) => {
   try {
     const { password } = req.body;
-    
+
     if (!password) {
       return res.status(400).json({ error: 'Password required to disable 2FA' });
     }
@@ -346,7 +328,7 @@ router.get('/2fa/status', auth, async (req, res) => {
 router.post('/2fa/backup-codes/regenerate', auth, async (req, res) => {
   try {
     const { token } = req.body;
-    
+
     if (!token || token.length !== 6) {
       return res.status(400).json({ error: 'Valid 6-digit token required' });
     }
@@ -367,7 +349,7 @@ router.post('/2fa/backup-codes/regenerate', auth, async (req, res) => {
 router.get('/sessions', auth, async (req, res) => {
   try {
     const sessions = await SecurityService.getActiveSessions(req.user._id);
-    
+
     // Mark current session
     const currentJwtId = req.jwtId;
     const sessionsWithCurrent = sessions.map(session => ({
@@ -488,7 +470,7 @@ router.post('/security/change-password', auth, async (req, res) => {
     }
 
     const user = await User.findById(req.user._id);
-    
+
     // Verify current password
     const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {
@@ -509,9 +491,9 @@ router.post('/security/change-password', auth, async (req, res) => {
       status: 'success'
     });
 
-    res.json({ 
-      success: true, 
-      message: 'Password changed successfully. Other sessions have been logged out.' 
+    res.json({
+      success: true,
+      message: 'Password changed successfully. Other sessions have been logged out.'
     });
   } catch (error) {
     console.error('Change password error:', error);

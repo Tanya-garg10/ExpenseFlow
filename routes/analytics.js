@@ -7,10 +7,14 @@ const gamificationService = require('../services/scoreService');
 const discoveryService = require('../services/discoveryService');
 const forecastingService = require('../services/forecastingService');
 const intelligenceService = require('../services/intelligenceService');
+const budgetRepository = require('../repositories/budgetRepository');
+const expenseRepository = require('../repositories/expenseRepository');
+const userRepository = require('../repositories/userRepository');
 const DataWarehouse = require('../models/DataWarehouse');
 const CustomDashboard = require('../models/CustomDashboard');
 const FinancialHealthScore = require('../models/FinancialHealthScore');
-const Budget = require('../models/Budget');
+const ResponseFactory = require('../utils/ResponseFactory');
+const { asyncHandler } = require('../middleware/errorMiddleware');
 
 // ========================
 // SUBSCRIPTION DETECTION & RUNWAY ROUTES (Issue #444)
@@ -432,328 +436,328 @@ router.get('/warehouse', auth, [
 
 // Get spending trends
 router.get('/trends', auth, async (req, res) => {
-    try {
-        const { period = 'daily', timeRange = 30 } = req.query;
-        const userId = req.user.id;
-        
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - parseInt(timeRange));
-        
-        const expenses = await Expense.aggregate([
-            {
-                $match: {
-                    userId: userId,
-                    date: { $gte: startDate },
-                    type: 'expense'
-                }
-            },
-            {
-                $group: {
-                    _id: {
-                        $dateToString: {
-                            format: period === 'monthly' ? '%Y-%m' : '%Y-%m-%d',
-                            date: '$date'
-                        }
-                    },
-                    totalAmount: { $sum: '$amount' },
-                    count: { $sum: 1 }
-                }
-            },
-            { $sort: { '_id': 1 } }
-        ]);
-        
-        res.json(expenses);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+  try {
+    const { period = 'daily', timeRange = 30 } = req.query;
+    const userId = req.user.id;
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(timeRange));
+
+    const expenses = await expenseRepository.aggregate([
+      {
+        $match: {
+          userId: userId,
+          date: { $gte: startDate },
+          type: 'expense'
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: {
+              format: period === 'monthly' ? '%Y-%m' : '%Y-%m-%d',
+              date: '$date'
+            }
+          },
+          totalAmount: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { '_id': 1 } }
+    ]);
+
+    res.json(expenses);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Get category breakdown
 router.get('/categories', auth, async (req, res) => {
-    try {
-        const { timeRange = 30 } = req.query;
-        const userId = req.user.id;
-        
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - parseInt(timeRange));
-        
-        const categoryData = await Expense.aggregate([
-            {
-                $match: {
-                    userId: userId,
-                    date: { $gte: startDate },
-                    type: 'expense'
-                }
-            },
-            {
-                $group: {
-                    _id: '$category',
-                    totalAmount: { $sum: '$amount' },
-                    transactionCount: { $sum: 1 },
-                    avgAmount: { $avg: '$amount' }
-                }
-            },
-            { $sort: { totalAmount: -1 } }
-        ]);
-        
-        const totalExpenses = categoryData.reduce((sum, cat) => sum + cat.totalAmount, 0);
-        
-        const categoriesWithPercentage = categoryData.map(cat => ({
-            category: cat._id,
-            amount: cat.totalAmount,
-            transactions: cat.transactionCount,
-            percentage: ((cat.totalAmount / totalExpenses) * 100).toFixed(1),
-            avgPerTransaction: Math.round(cat.avgAmount)
-        }));
-        
-        res.json(categoriesWithPercentage);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+  try {
+    const { timeRange = 30 } = req.query;
+    const userId = req.user.id;
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(timeRange));
+
+    const categoryData = await expenseRepository.aggregate([
+      {
+        $match: {
+          userId: userId,
+          date: { $gte: startDate },
+          type: 'expense'
+        }
+      },
+      {
+        $group: {
+          _id: '$category',
+          totalAmount: { $sum: '$amount' },
+          transactionCount: { $sum: 1 },
+          avgAmount: { $avg: '$amount' }
+        }
+      },
+      { $sort: { totalAmount: -1 } }
+    ]);
+
+    const totalExpenses = categoryData.reduce((sum, cat) => sum + cat.totalAmount, 0);
+
+    const categoriesWithPercentage = categoryData.map(cat => ({
+      category: cat._id,
+      amount: cat.totalAmount,
+      transactions: cat.transactionCount,
+      percentage: ((cat.totalAmount / totalExpenses) * 100).toFixed(1),
+      avgPerTransaction: Math.round(cat.avgAmount)
+    }));
+
+    res.json(categoriesWithPercentage);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Get top merchants
 router.get('/merchants', auth, async (req, res) => {
-    try {
-        const { timeRange = 30, limit = 10 } = req.query;
-        const userId = req.user.id;
-        
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - parseInt(timeRange));
-        
-        const merchants = await Expense.aggregate([
-            {
-                $match: {
-                    userId: userId,
-                    date: { $gte: startDate },
-                    type: 'expense',
-                    merchant: { $exists: true, $ne: '' }
-                }
-            },
-            {
-                $group: {
-                    _id: '$merchant',
-                    totalAmount: { $sum: '$amount' },
-                    transactionCount: { $sum: 1 }
-                }
-            },
-            { $sort: { totalAmount: -1 } },
-            { $limit: parseInt(limit) }
-        ]);
-        
-        res.json(merchants.map(merchant => ({
-            name: merchant._id,
-            amount: merchant.totalAmount,
-            transactions: merchant.transactionCount
-        })));
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+  try {
+    const { timeRange = 30, limit = 10 } = req.query;
+    const userId = req.user.id;
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(timeRange));
+
+    const merchants = await expenseRepository.aggregate([
+      {
+        $match: {
+          userId: userId,
+          date: { $gte: startDate },
+          type: 'expense',
+          merchant: { $exists: true, $ne: '' }
+        }
+      },
+      {
+        $group: {
+          _id: '$merchant',
+          totalAmount: { $sum: '$amount' },
+          transactionCount: { $sum: 1 }
+        }
+      },
+      { $sort: { totalAmount: -1 } },
+      { $limit: parseInt(limit) }
+    ]);
+
+    res.json(merchants.map(merchant => ({
+      name: merchant._id,
+      amount: merchant.totalAmount,
+      transactions: merchant.transactionCount
+    })));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Get income vs expenses comparison
 router.get('/income-expense', auth, async (req, res) => {
-    try {
-        const { months = 6 } = req.query;
-        const userId = req.user.id;
-        
-        const startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - parseInt(months));
-        
-        const monthlyData = await Expense.aggregate([
-            {
-                $match: {
-                    userId: userId,
-                    date: { $gte: startDate }
-                }
-            },
-            {
-                $group: {
-                    _id: {
-                        month: { $dateToString: { format: '%Y-%m', date: '$date' } },
-                        type: '$type'
-                    },
-                    totalAmount: { $sum: '$amount' }
-                }
-            },
-            { $sort: { '_id.month': 1 } }
-        ]);
-        
-        const formattedData = {};
-        monthlyData.forEach(item => {
-            const month = item._id.month;
-            if (!formattedData[month]) {
-                formattedData[month] = { month, income: 0, expense: 0 };
-            }
-            formattedData[month][item._id.type] = item.totalAmount;
-        });
-        
-        res.json(Object.values(formattedData));
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+  try {
+    const { months = 6 } = req.query;
+    const userId = req.user.id;
+
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - parseInt(months));
+
+    const monthlyData = await expenseRepository.aggregate([
+      {
+        $match: {
+          userId: userId,
+          date: { $gte: startDate }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            month: { $dateToString: { format: '%Y-%m', date: '$date' } },
+            type: '$type'
+          },
+          totalAmount: { $sum: '$amount' }
+        }
+      },
+      { $sort: { '_id.month': 1 } }
+    ]);
+
+    const formattedData = {};
+    monthlyData.forEach(item => {
+      const month = item._id.month;
+      if (!formattedData[month]) {
+        formattedData[month] = { month, income: 0, expense: 0 };
+      }
+      formattedData[month][item._id.type] = item.totalAmount;
+    });
+
+    res.json(Object.values(formattedData));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Generate detailed report
 router.get('/report/:type', auth, async (req, res) => {
-    try {
-        const { type } = req.params;
-        const { timeRange = 30 } = req.query;
-        const userId = req.user.id;
-        
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - parseInt(timeRange));
-        
-        let reportData = [];
-        
-        switch (type) {
-            case 'category':
-                reportData = await Expense.aggregate([
-                    {
-                        $match: {
-                            userId: userId,
-                            date: { $gte: startDate },
-                            type: 'expense'
-                        }
-                    },
-                    {
-                        $group: {
-                            _id: '$category',
-                            totalAmount: { $sum: '$amount' },
-                            transactionCount: { $sum: 1 },
-                            avgAmount: { $avg: '$amount' }
-                        }
-                    },
-                    { $sort: { totalAmount: -1 } }
-                ]);
-                break;
-                
-            case 'monthly':
-                reportData = await Expense.aggregate([
-                    {
-                        $match: {
-                            userId: userId,
-                            type: 'expense'
-                        }
-                    },
-                    {
-                        $group: {
-                            _id: { $dateToString: { format: '%Y-%m', date: '$date' } },
-                            totalAmount: { $sum: '$amount' },
-                            transactionCount: { $sum: 1 }
-                        }
-                    },
-                    { $sort: { '_id': -1 } },
-                    { $limit: 12 }
-                ]);
-                break;
-                
-            case 'yearly':
-                reportData = await Expense.aggregate([
-                    {
-                        $match: {
-                            userId: userId,
-                            type: 'expense'
-                        }
-                    },
-                    {
-                        $group: {
-                            _id: { $dateToString: { format: '%Y', date: '$date' } },
-                            totalAmount: { $sum: '$amount' },
-                            transactionCount: { $sum: 1 }
-                        }
-                    },
-                    { $sort: { '_id': -1 } },
-                    { $limit: 5 }
-                ]);
-                break;
-        }
-        
-        res.json(reportData);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+  try {
+    const { type } = req.params;
+    const { timeRange = 30 } = req.query;
+    const userId = req.user.id;
+
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(timeRange));
+
+    let reportData = [];
+
+    switch (type) {
+      case 'category':
+        reportData = await expenseRepository.aggregate([
+          {
+            $match: {
+              userId: userId,
+              date: { $gte: startDate },
+              type: 'expense'
+            }
+          },
+          {
+            $group: {
+              _id: '$category',
+              totalAmount: { $sum: '$amount' },
+              transactionCount: { $sum: 1 },
+              avgAmount: { $avg: '$amount' }
+            }
+          },
+          { $sort: { totalAmount: -1 } }
+        ]);
+        break;
+
+      case 'monthly':
+        reportData = await expenseRepository.aggregate([
+          {
+            $match: {
+              userId: userId,
+              type: 'expense'
+            }
+          },
+          {
+            $group: {
+              _id: { $dateToString: { format: '%Y-%m', date: '$date' } },
+              totalAmount: { $sum: '$amount' },
+              transactionCount: { $sum: 1 }
+            }
+          },
+          { $sort: { '_id': -1 } },
+          { $limit: 12 }
+        ]);
+        break;
+
+      case 'yearly':
+        reportData = await expenseRepository.aggregate([
+          {
+            $match: {
+              userId: userId,
+              type: 'expense'
+            }
+          },
+          {
+            $group: {
+              _id: { $dateToString: { format: '%Y', date: '$date' } },
+              totalAmount: { $sum: '$amount' },
+              transactionCount: { $sum: 1 }
+            }
+          },
+          { $sort: { '_id': -1 } },
+          { $limit: 5 }
+        ]);
+        break;
     }
+
+    res.json(reportData);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Get financial insights
 router.get('/insights', auth, async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const insights = [];
-        
-        // Weekend vs weekday spending
-        const weekendSpending = await Expense.aggregate([
-            {
-                $match: {
-                    userId: userId,
-                    type: 'expense',
-                    date: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
-                }
-            },
-            {
-                $group: {
-                    _id: { $dayOfWeek: '$date' },
-                    avgAmount: { $avg: '$amount' }
-                }
-            }
-        ]);
-        
-        const weekdayAvg = weekendSpending
-            .filter(day => day._id >= 2 && day._id <= 6)
-            .reduce((sum, day) => sum + day.avgAmount, 0) / 5;
-        const weekendAvg = weekendSpending
-            .filter(day => day._id === 1 || day._id === 7)
-            .reduce((sum, day) => sum + day.avgAmount, 0) / 2;
-        
-        if (weekendAvg > weekdayAvg * 1.2) {
-            insights.push({
-                type: 'spending_pattern',
-                title: 'Weekend Spending',
-                message: `You spend ${Math.round(((weekendAvg / weekdayAvg - 1) * 100))}% more on weekends. Consider setting weekend budgets.`,
-                icon: '🎯'
-            });
+  try {
+    const userId = req.user.id;
+    const insights = [];
+
+    // Weekend vs weekday spending
+    const weekendSpending = await expenseRepository.aggregate([
+      {
+        $match: {
+          userId: userId,
+          type: 'expense',
+          date: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
         }
-        
-        // Budget performance (mock for now)
-        insights.push({
-            type: 'budget_performance',
-            title: 'Budget Performance',
-            message: 'You\'re 15% under budget this month. Great job on controlling expenses!',
-            icon: '📊'
-        });
-        
-        // Savings opportunity
-        const foodExpenses = await Expense.aggregate([
-            {
-                $match: {
-                    userId: userId,
-                    category: 'Food & Dining',
-                    type: 'expense',
-                    date: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
-                }
-            },
-            {
-                $group: {
-                    _id: null,
-                    totalAmount: { $sum: '$amount' }
-                }
-            }
-        ]);
-        
-        if (foodExpenses.length > 0) {
-            const monthlySavings = Math.round(foodExpenses[0].totalAmount * 0.2);
-            insights.push({
-                type: 'savings_opportunity',
-                title: 'Savings Opportunity',
-                message: `Reduce food delivery by 20% to save ₹${monthlySavings} monthly.`,
-                icon: '💰'
-            });
+      },
+      {
+        $group: {
+          _id: { $dayOfWeek: '$date' },
+          avgAmount: { $avg: '$amount' }
         }
-        
-        res.json(insights);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+      }
+    ]);
+
+    const weekdayAvg = weekendSpending
+      .filter(day => day._id >= 2 && day._id <= 6)
+      .reduce((sum, day) => sum + day.avgAmount, 0) / 5;
+    const weekendAvg = weekendSpending
+      .filter(day => day._id === 1 || day._id === 7)
+      .reduce((sum, day) => sum + day.avgAmount, 0) / 2;
+
+    if (weekendAvg > weekdayAvg * 1.2) {
+      insights.push({
+        type: 'spending_pattern',
+        title: 'Weekend Spending',
+        message: `You spend ${Math.round(((weekendAvg / weekdayAvg - 1) * 100))}% more on weekends. Consider setting weekend budgets.`,
+        icon: '🎯'
+      });
     }
+
+    // Budget performance (mock for now)
+    insights.push({
+      type: 'budget_performance',
+      title: 'Budget Performance',
+      message: 'You\'re 15% under budget this month. Great job on controlling expenses!',
+      icon: '📊'
+    });
+
+    // Savings opportunity
+    const foodExpenses = await expenseRepository.aggregate([
+      {
+        $match: {
+          userId: userId,
+          category: 'Food & Dining',
+          type: 'expense',
+          date: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalAmount: { $sum: '$amount' }
+        }
+      }
+    ]);
+
+    if (foodExpenses.length > 0) {
+      const monthlySavings = Math.round(foodExpenses[0].totalAmount * 0.2);
+      insights.push({
+        type: 'savings_opportunity',
+        title: 'Savings Opportunity',
+        message: `Reduce food delivery by 20% to save ₹${monthlySavings} monthly.`,
+        icon: '💰'
+      });
+    }
+
+    res.json(insights);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // ============================================
@@ -839,7 +843,7 @@ router.post('/intelligence/update', auth, async (req, res) => {
   try {
     // Sync spending history first
     await budgetIntelligenceService.syncSpendingHistory(req.user.id);
-    
+
     // Update intelligence
     const result = await budgetIntelligenceService.updateBudgetIntelligence(req.user.id);
 
@@ -892,13 +896,13 @@ router.post('/intelligence/analyze-transaction', auth, [
 // Get reallocation suggestions
 router.get('/intelligence/reallocations', auth, async (req, res) => {
   try {
-    const budgets = await Budget.find({ 
-      user: req.user.id, 
-      isActive: true 
+    const budgets = await budgetRepository.findAll({
+      user: req.user.id,
+      isActive: true
     });
 
     const suggestions = [];
-    
+
     for (const budget of budgets) {
       const pending = budget.intelligence.reallocations.filter(r => r.status === 'pending');
       pending.forEach(suggestion => {
@@ -1011,7 +1015,7 @@ router.post('/intelligence/reallocations/reject', auth, [
 
     const { budgetId, toCategory } = req.body;
 
-    const budget = await Budget.findOne({
+    const budget = await budgetRepository.findOne({
       _id: budgetId,
       user: req.user.id
     });
@@ -1029,7 +1033,7 @@ router.post('/intelligence/reallocations/reject', auth, [
 
     if (suggestion) {
       suggestion.status = 'rejected';
-      await budget.save();
+      await budgetRepository.updateById(budget._id, budget);
     }
 
     res.json({
@@ -1135,14 +1139,14 @@ router.post('/intelligence/recalculate', auth, async (req, res) => {
 router.get('/burn-rate', auth, async (req, res) => {
   try {
     const { categoryId, workspaceId, startDate, endDate } = req.query;
-    
+
     const burnRate = await intelligenceService.calculateBurnRate(req.user.id, {
       categoryId,
       workspaceId,
       startDate,
       endDate
     });
-    
+
     res.json({
       success: true,
       data: burnRate
@@ -1163,13 +1167,13 @@ router.get('/burn-rate', auth, async (req, res) => {
 router.get('/forecast', auth, async (req, res) => {
   try {
     const { categoryId, workspaceId, daysToPredict } = req.query;
-    
+
     const forecast = await intelligenceService.predictExpenses(req.user.id, {
       categoryId,
       workspaceId,
       daysToPredict: daysToPredict ? parseInt(daysToPredict) : 30
     });
-    
+
     res.json({
       success: true,
       data: forecast
@@ -1190,13 +1194,13 @@ router.get('/forecast', auth, async (req, res) => {
 router.get('/forecast/moving-average', auth, async (req, res) => {
   try {
     const { categoryId, workspaceId, period } = req.query;
-    
+
     const wma = await intelligenceService.calculateWeightedMovingAverage(req.user.id, {
       categoryId,
       workspaceId,
       period: period ? parseInt(period) : 7
     });
-    
+
     res.json({
       success: true,
       data: wma
@@ -1217,9 +1221,9 @@ router.get('/forecast/moving-average', auth, async (req, res) => {
 router.get('/budget/:budgetId/exhaustion', auth, async (req, res) => {
   try {
     const { budgetId } = req.params;
-    
+
     const exhaustion = await intelligenceService.predictBudgetExhaustion(req.user.id, budgetId);
-    
+
     res.json({
       success: true,
       data: exhaustion
@@ -1240,12 +1244,12 @@ router.get('/budget/:budgetId/exhaustion', auth, async (req, res) => {
 router.get('/category-patterns', auth, async (req, res) => {
   try {
     const { workspaceId, daysToAnalyze } = req.query;
-    
+
     const patterns = await intelligenceService.analyzeCategoryPatterns(req.user.id, {
       workspaceId,
       daysToAnalyze: daysToAnalyze ? parseInt(daysToAnalyze) : 30
     });
-    
+
     res.json({
       success: true,
       data: patterns
@@ -1266,7 +1270,7 @@ router.get('/category-patterns', auth, async (req, res) => {
 router.get('/insights', auth, async (req, res) => {
   try {
     const insights = await intelligenceService.generateInsights(req.user.id);
-    
+
     res.json({
       success: true,
       data: insights
@@ -1287,7 +1291,7 @@ router.get('/insights', auth, async (req, res) => {
 router.get('/forecast/complete', auth, async (req, res) => {
   try {
     const { categoryId, workspaceId } = req.query;
-    
+
     // Run all analyses in parallel
     const [burnRate, forecast, categoryPatterns, insights] = await Promise.all([
       intelligenceService.calculateBurnRate(req.user.id, { categoryId, workspaceId }),
@@ -1295,7 +1299,7 @@ router.get('/forecast/complete', auth, async (req, res) => {
       intelligenceService.analyzeCategoryPatterns(req.user.id, { workspaceId }),
       intelligenceService.generateInsights(req.user.id)
     ]);
-    
+
     res.json({
       success: true,
       data: {
@@ -1311,6 +1315,185 @@ router.get('/forecast/complete', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to generate complete forecast'
+    });
+  }
+});
+
+// ========================
+// FINANCIAL WELLNESS & HEALTH SCORE ROUTES (Issue #481)
+// ========================
+
+const wellnessService = require('../services/wellnessService');
+const analysisEngine = require('../services/analysisEngine');
+const Insight = require('../models/Insight');
+
+/**
+ * GET /api/analytics/wellness/health-score
+ * Get comprehensive financial health score
+ */
+router.get('/wellness/health-score', auth, async (req, res) => {
+  try {
+    const timeWindow = parseInt(req.query.timeWindow) || 30;
+    const healthScore = await wellnessService.calculateHealthScore(req.user.id, { timeWindow });
+
+    res.json({
+      success: true,
+      data: healthScore
+    });
+  } catch (error) {
+    console.error('Health score calculation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to calculate health score'
+    });
+  }
+});
+
+/**
+ * GET /api/analytics/wellness/insights
+ * Get active financial insights and recommendations
+ */
+router.get('/wellness/insights', auth, async (req, res) => {
+  try {
+    const priority = req.query.priority;
+    const type = req.query.type;
+    const limit = parseInt(req.query.limit) || 20;
+
+    const insights = await Insight.getActiveInsights(req.user.id, {
+      priority,
+      type,
+      limit
+    });
+
+    const statistics = await Insight.getStatistics(req.user.id);
+
+    res.json({
+      success: true,
+      data: {
+        insights,
+        statistics,
+        count: insights.length
+      }
+    });
+  } catch (error) {
+    console.error('Insights fetch error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch insights'
+    });
+  }
+});
+
+/**
+ * POST /api/analytics/wellness/analyze
+ * Run comprehensive financial analysis
+ */
+router.post('/wellness/analyze', auth, async (req, res) => {
+  try {
+    const analysis = await analysisEngine.runComprehensiveAnalysis(req.user.id);
+
+    res.json({
+      success: true,
+      data: analysis
+    });
+  } catch (error) {
+    console.error('Analysis error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to run analysis'
+    });
+  }
+});
+
+/**
+ * POST /api/analytics/wellness/insights/:id/acknowledge
+ * Acknowledge an insight
+ */
+router.post('/wellness/insights/:id/acknowledge', auth, async (req, res) => {
+  try {
+    const insight = await Insight.findOne({
+      _id: req.params.id,
+      user: req.user.id
+    });
+
+    if (!insight) {
+      return res.status(404).json({
+        success: false,
+        message: 'Insight not found'
+      });
+    }
+
+    await insight.acknowledge();
+
+    res.json({
+      success: true,
+      message: 'Insight acknowledged',
+      data: insight
+    });
+  } catch (error) {
+    console.error('Acknowledge insight error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to acknowledge insight'
+    });
+  }
+});
+
+/**
+ * POST /api/analytics/wellness/insights/:id/dismiss
+ * Dismiss an insight
+ */
+router.post('/wellness/insights/:id/dismiss', auth, async (req, res) => {
+  try {
+    const insight = await Insight.findOne({
+      _id: req.params.id,
+      user: req.user.id
+    });
+
+    if (!insight) {
+      return res.status(404).json({
+        success: false,
+        message: 'Insight not found'
+      });
+    }
+
+    await insight.dismiss();
+
+    res.json({
+      success: true,
+      message: 'Insight dismissed',
+      data: insight
+    });
+  } catch (error) {
+    console.error('Dismiss insight error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to dismiss insight'
+    });
+  }
+});
+
+/**
+ * GET /api/analytics/wellness/velocity/:category
+ * Get spending velocity analysis for specific category
+ */
+router.get('/wellness/velocity/:category', auth, async (req, res) => {
+  try {
+    const timeWindow = parseInt(req.query.timeWindow) || 7;
+    const velocity = await analysisEngine.analyzeSpendingVelocity(req.user.id, {
+      category: req.params.category,
+      timeWindow
+    });
+
+    res.json({
+      success: true,
+      data: velocity
+    });
+  } catch (error) {
+    console.error('Velocity analysis error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to analyze velocity'
     });
   }
 });

@@ -532,3 +532,53 @@
     transform: translate(-50%, -50%) scale(1.3);
     background: linear-gradient(135deg, #00b4d8 0%, #64ffda 100%) !important;
   }
+/* ============================= */
+/* 🔵 Blue Cursor Trail Effect  */
+/* ============================= */
+
+.circle-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 999999;
+}
+
+.cursor-circle {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #3b82f6;
+  box-shadow:
+    0 0 10px #3b82f6,
+    0 0 20px rgba(59,130,246,0.8),
+    0 0 35px rgba(59,130,246,0.6);
+  transform: translate(-50%, -50%);
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+
+.cursor-circle:first-child {
+  width: 14px;
+  height: 14px;
+  background: #60a5fa;
+  box-shadow:
+    0 0 15px #60a5fa,
+    0 0 35px rgba(96,165,250,0.9);
+}
+
+.cursor-clicking {
+  transform: translate(-50%, -50%) scale(2.2) !important;
+}
+
+.cursor-hovering {
+  transform: translate(-50%, -50%) scale(1.6);
+}
+
+/* Optional */
+body {
+  cursor: none;
+}
