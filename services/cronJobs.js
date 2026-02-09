@@ -16,7 +16,7 @@ const backupService = require('../services/backupService');
 class CronJobs {
   static init() {
     // ========== BACKUP JOBS ==========
-    
+
     // Daily backup - Every day at 2:00 AM UTC
     cron.schedule('0 2 * * *', async () => {
       try {
@@ -320,10 +320,62 @@ class CronJobs {
       await this.runDailyAnomalyDetection();
     });
 
+    // Monthly fixed asset depreciation - 1st day of month at 1 AM UTC
+    cron.schedule('0 1 1 * *', async () => {
+      try {
+        console.log('[CronJobs] Running monthly asset depreciation...');
+        const assetService = require('./assetService');
+        const results = await assetService.runBatchDepreciation();
+        console.log(`[CronJobs] Processed ${results.length} asset depreciation entries`);
+      } catch (err) {
+        console.error('[CronJobs] Error in asset depreciation:', err);
+      }
+    });
+
     // Forecast accuracy update - Daily at 11 PM
     cron.schedule('0 23 * * *', async () => {
       console.log('[CronJobs] Updating forecast accuracy...');
       await this.updateForecastAccuracy();
+    });
+
+    // Retrain ML categorization models - Daily at 2 AM
+    cron.schedule('0 2 * * *', async () => {
+      console.log('[CronJobs] Retraining ML categorization models...');
+      await this.retrainCategorizationModels();
+    });
+
+    // Monthly payroll generation - 1st day of month at 12 AM UTC
+    cron.schedule('0 0 1 * *', async () => {
+      try {
+        console.log('[CronJobs] Running automated monthly payroll generation...');
+        const payrollService = require('./payrollService');
+        const User = require('../models/User');
+
+        const currentDate = new Date();
+        const month = currentDate.getMonth() + 1;
+        const year = currentDate.getFullYear();
+
+        // Get all users with active salary structures
+        const SalaryStructure = require('../models/SalaryStructure');
+        const usersWithPayroll = await SalaryStructure.distinct('userId', { isActive: true });
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const userId of usersWithPayroll) {
+          try {
+            await payrollService.generatePayroll(userId, month, year);
+            successCount++;
+          } catch (err) {
+            console.error(`[CronJobs] Failed to generate payroll for user ${userId}:`, err.message);
+            failCount++;
+          }
+        }
+
+        console.log(`[CronJobs] Payroll generation completed: ${successCount} success, ${failCount} failed`);
+      } catch (err) {
+        console.error('[CronJobs] Error in monthly payroll generation:', err);
+      }
     });
 
     console.log('Cron jobs initialized successfully');

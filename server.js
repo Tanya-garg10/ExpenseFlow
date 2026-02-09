@@ -42,7 +42,11 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: [process.env.FRONTEND_URL ||
+      "http://localhost:3000",
+      'https://accounts.clerk.dev',
+      'https://*.clerk.accounts.dev'
+    ],
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -58,20 +62,43 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com", "https://api.github.com"],
+      styleSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        "https://cdnjs.cloudflare.com",
+        "https://fonts.googleapis.com",
+        "https://api.github.com"
+      ],
       scriptSrc: [
         "'self'",
         "'unsafe-inline'",
+        "'unsafe-eval'",
+        "blob:",
         "https://cdn.socket.io",
         "https://cdn.jsdelivr.net",
-        "https://api.github.com"
+        "https://api.github.com",
+        "https://challenges.cloudflare.com",
+        "https://*.clerk.accounts.dev"
       ],
       scriptSrcAttr: ["'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:", "https://res.cloudinary.com", "https://api.github.com"],
+      workerSrc: ["'self'", "blob:"],
+      imgSrc: [
+        "'self'",
+        "data:",
+        "https:",
+        "https://res.cloudinary.com",
+        "https://api.github.com",
+        "https://img.clerk.com" // For Clerk user avatars
+      ],
       connectSrc: [
         "'self'",
         "http://localhost:3000",
         "ws://localhost:3000",
+
+        // Clerk domains
+        "https://api.clerk.com",
+        "https://clerk.com",
+        "https://*.clerk.accounts.dev",
 
         // APIs
         "https://api.exchangerate-api.com",
@@ -88,7 +115,10 @@ app.use(helmet({
       fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
-      frameSrc: ["'none'"]
+      frameSrc: [
+        "'self'",
+        "https://challenges.cloudflare.com" // For Clerk captcha
+      ]
     }
   },
   crossOriginEmbedderPolicy: false
@@ -247,7 +277,8 @@ console.log('Collaboration handler initialized');
 app.use('/api/auth', require('./middleware/rateLimiter').authLimiter, authRoutes);
 app.use('/api/expenses', expenseRoutes); // Expense management
 app.use('/api/currency', require('./routes/currency'));
-app.use('/api/groups', require('./routes/groups'));
+app.use('/api/payroll', require('./routes/payroll'));
+app.use('/api/inventory', require('./routes/inventory'));
 app.use('/api/splits', require('./routes/splits'));
 app.use('/api/workspaces', require('./routes/workspaces'));
 app.use('/api/tax', require('./routes/tax'));
@@ -257,8 +288,10 @@ app.use('/api/tags', require('./routes/tags'));
 app.use('/api/2fa', require('./middleware/auth'), twoFactorAuthRoutes);
 app.use('/api/receipts', require('./routes/receipts'));
 app.use('/api/folders', require('./routes/folders'));
-app.use('/api/approvals', require('./routes/approvals'));
-app.use('/api/teams', require('./routes/teams'));
+app.use('/api/procurement', require('./routes/procurement'));
+app.use('/api/compliance', require('./routes/compliance'));
+app.use('/api/project-billing', require('./routes/project-billing'));
+app.use('/api/treasury', require('./routes/treasury'));
 
 // Import error handling middleware
 const { errorHandler, notFoundHandler } = require('./middleware/errorMiddleware');
