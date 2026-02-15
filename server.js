@@ -174,12 +174,12 @@ async function connectDatabase() {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('MongoDB connected');
-    // Initialize cron jobs after DB connection (includes backup scheduling)
-    // Issue #462: Automated Backup System for Financial Data
+    // Initialize cron jobs after DB connection
     CronJobs.init();
     require('./jobs/trendAnalyzer').start();
     require('./jobs/reportScheduler').start();
-    console.log('✓ Cron jobs initialized (Backup, Trend & Reports)');
+    require('./jobs/accessAuditor').start();
+    console.log('✓ Cron jobs initialized (Backup, Trend, Reports & RBAC)');
   } catch (err) {
     console.error('MongoDB connection error:', err);
   }
@@ -286,8 +286,8 @@ app.use('/api/profile', require('./routes/profile'));
 // Serve uploaded avatars
 app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
 app.use('/api/treasury', require('./routes/treasury'));
-app.use('/api/search', require('./routes/search'));
 app.use('/api/exports', require('./routes/exports'));
+app.use('/api/rbac', require('./routes/permissions'));
 app.use('/api/maps', require('./routes/maps'));
 app.use('/api/sync', require('./middleware/syncInterceptor'), require('./routes/sync'));
 
