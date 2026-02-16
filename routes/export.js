@@ -29,7 +29,7 @@ router.get('/csv', auth, exportRateLimiter, async (req, res) => {
             });
         }
 
-        const csvContent = exportService.generateCSV(expenses, {
+        const csvContent = exportService.exportToCSV(expenses, {
             includeHeaders: true,
             dateFormat: req.query.dateFormat || req.user?.locale || 'en-US'
         });
