@@ -190,7 +190,10 @@ io.use(socketAuth);
 
 // Initialize settlement service with Socket.IO
 const settlementService = require('./services/settlementService');
-settlementService.setSocketIO(io);
+if (settlementService && typeof settlementService.setSocketIO === 'function') {
+  settlementService.setSocketIO(io);
+}
+
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
